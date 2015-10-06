@@ -9,6 +9,15 @@ from os import linesep
 import re
 import tempfile
 import subprocess
+import statistics
+
+# Graphing specific imports
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import matplotlib.patches as mpatches
+from scipy.stats import norm
+import numpy as np
+
 
 employees = []
 
@@ -93,14 +102,63 @@ def get_employees_by_header(first_name=None, last_name=None, title=None, departm
         (e.last_name.lower() == last_name.lower() if last_name is not None else True)
     ]
     
+
 def get_average_salary_by_header(title=None, department=None, inflate_to_12_months=False):
     l = get_employees_by_header(title=title, department=department)
     sum_salaries = sum([e.ibs if not inflate_to_12_months else (e.ibs*(12.0/e.basis)) for e in l])
-    return round(sum_salaries / len(l), 2)
+    try:
+        return round(sum_salaries / len(l), 2)
+    except ZeroDivisionError:
+        raise Exception("No average found with title '%s' and department '%s'" % (title, department))
     
-            
+
+def g_compare_employee_salary_by_header(employee, title=None, department=None, inflate_to_12_months=False, normalize=False):
+    avg = get_average_salary_by_header(title, department, inflate_to_12_months)
+    employee_salary = employee.ibs if not inflate_to_12_months else employee.ibs*(12.0/employee.basis)
+    salaries = [e.ibs if not inflate_to_12_months else e.ibs*(12.0/e.basis) for e in get_employees_by_header(title=title, department=department)]
+    sd = statistics.stdev(salaries, avg)
+    
+    ax = plt.subplot(111)
+    n, bins, patches = ax.hist(salaries, len(salaries), color='green', normed=normalize, alpha=.8)
+    s = 'Distribution of Salaries'
+    if title is not None and department is not None:
+        s += " for Faculty with Title '%s'%sUnder Department '%s'" % (title, linesep, department)
+    elif title is not None:
+        s += " for Faculty with Title '%s'%sUnder All Departments" % (title, linesep)
+    elif department is not None:
+        s += " For Faculty with Any Title%sUnder Department '%s'" % (linesep, department)
+    else:
+        s += " For Faculty with Any Title%sUnder All Departments" % linesep
+        
+    if normalize:
+        bincenters = 0.5*(bins[1:]+bins[:-1])
+        y = mlab.normpdf(bincenters, avg, sd)
+        ax.plot(bincenters, y, 'r--')
+        ax.set_ylabel('Probability')
+    else:
+        ax.set_ylabel('Frequency')
+        
+    ax.set_xlabel('Salaries in USD')
+    ax.set_title(s)
+
+        
+    # Add vertical lines for average and employee salary
+    ax.axvline(x=avg, linewidth=2, color='blue')
+    avg_patch = mpatches.Patch(color='blue', label='Average Salary = %.2f' % avg)
+    ax.axvline(employee_salary, linewidth=2, color='red')
+    employee_patch = mpatches.Patch(color='red', label='Employee %s, %s = %.2f' % (employee.last_name, employee.first_name, employee_salary))
+    
+    # Edit location of legend
+    box = ax.get_position()
+    ax.set_position([box.x0+box.width*.05, box.y0+box.height*.15, box.width, box.height*.80])
+    ax.legend(loc='upper center', bbox_to_anchor=(.5, -.125), 
+              handles=[avg_patch, employee_patch], fancybox=True, shadow=True, ncol=1)
+    
+    plt.show()
+
 if __name__ == '__main__':
     build_employee_list('salaries2015.pdf')
-    depts = set([e.department for e in employees])
+    e = get_employees_by_header(last_name='Slack')[0]
+    g_compare_employee_salary_by_header(e, title=e.title, normalize=True)
         
     
