@@ -15,8 +15,6 @@ import statistics
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import matplotlib.patches as mpatches
-from scipy.stats import norm
-import numpy as np
 
 
 employees = []
@@ -85,7 +83,7 @@ def build_employee_list(pdf_file):
                 numerator = match.group('numerator')
                 denominator = match.group('denominator')
             else:
-                numerator = 1
+                numerator = 0
                 denominator = 1
             f_basis = float(int_val) + float(numerator)/float(denominator)
             e.set_basis(f_basis)
@@ -159,6 +157,8 @@ def g_compare_employee_salary_by_header(employee, title=None, department=None, i
 if __name__ == '__main__':
     build_employee_list('salaries2015.pdf')
     e = get_employees_by_header(last_name='Slack')[0]
-    g_compare_employee_salary_by_header(e, title=e.title, normalize=True)
-        
+    g_compare_employee_salary_by_header(e,  normalize=True, inflate_to_12_months=True)
+    ee= get_employees_by_header(last_name='Mroz', first_name='Glenn')[0]
+    print(ee.basis)
+    print(ee.ibs*(12.0/ee.basis))
     
